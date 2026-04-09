@@ -274,6 +274,11 @@ export function PracticePage() {
 
         <section className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
           <h2 className="mb-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-200">④ 影片播放與句子選擇</h2>
+          {videoUrl && cues.length === 0 && (
+            <p className="mb-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-left text-sm text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100">
+              影片已載入。下一步請在上方「③ 載入字幕（SRT）」選擇字幕檔，分段列表才會出現內容。
+            </p>
+          )}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_min(18rem,32%)] lg:items-stretch">
             <VideoPlayer
               ref={videoPlayerRef}

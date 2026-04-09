@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVideoStore } from '../store/useVideoStore'
 import {
   extractYoutubeVideoId,
   fetchYoutubeOEmbed,
 } from '../lib/youtube'
 import { parseSrt } from '../lib/srt'
-import { apiSegmentsToCues, postVideoSrt } from '../services/api'
+import { apiSegmentsToCues, postVideo, postVideoAutoSubtitle, postVideoSrt } from '../services/api'
 
 /**
  * 影片與字幕載入區（課本 VideoManagement）：YouTube 網址、本機影片、SRT。
@@ -26,6 +26,11 @@ export function VideoManagement() {
     cues,
     libraryVideoId,
   } = useVideoStore()
+  const [youtubeLoading, setYoutubeLoading] = useState(false)
+  const [youtubeStatus, setYoutubeStatus] = useState<string | null>(null)
+  const [autoSubtitleLoading, setAutoSubtitleLoading] = useState(false)
+  const [autoSubtitleMsg, setAutoSubtitleMsg] = useState<string | null>(null)
+  const [autoSubtitleErr, setAutoSubtitleErr] = useState<string | null>(null)
 
   const localBlobRef = useRef<string | null>(null)
 
@@ -47,6 +52,7 @@ export function VideoManagement() {
   )
 
   const handleLoadYoutube = async () => {
+    if (youtubeLoading) return
     const id = extractYoutubeVideoId(urlInput)
     if (!id) {
       setYoutubeLoaded({
@@ -55,17 +61,25 @@ export function VideoManagement() {
         oembed: null,
         oembedError: '無法解析 YouTube 網址或影片 ID。',
       })
+      setYoutubeStatus(null)
       return
     }
+    setYoutubeLoading(true)
+    setYoutubeStatus(null)
     revokeLocalBlob()
     const canonical = `https://www.youtube.com/watch?v=${id}`
-    const meta = await fetchYoutubeOEmbed(canonical)
-    setYoutubeLoaded({
-      pageUrl: canonical,
-      videoId: id,
-      oembed: meta,
-      oembedError: meta ? null : '無法取得影片資訊（oEmbed）。影片仍可能可播放。',
-    })
+    try {
+      const meta = await fetchYoutubeOEmbed(canonical)
+      setYoutubeLoaded({
+        pageUrl: canonical,
+        videoId: id,
+        oembed: meta,
+        oembedError: meta ? null : '無法取得影片資訊（oEmbed）。影片仍可能可播放。',
+      })
+      setYoutubeStatus(`已載入影片 ID：${id}`)
+    } finally {
+      setYoutubeLoading(false)
+    }
   }
 
   const handleLocalVideoFile = (file: File | null) => {
@@ -96,6 +110,37 @@ export function VideoManagement() {
     setSrtLoaded({ fileName: file.name, cues: parsed })
   }
 
+  const handleAutoSubtitle = async () => {
+    if (autoSubtitleLoading) return
+    setAutoSubtitleMsg(null)
+    setAutoSubtitleErr(null)
+    const targetUrl = (pageUrl || urlInput || '').trim()
+    if (!targetUrl) {
+      setAutoSubtitleErr('請先載入 YouTube 影片。')
+      return
+    }
+    try {
+      setAutoSubtitleLoading(true)
+      let targetVideoId = libraryVideoId
+      if (targetVideoId == null) {
+        const created = await postVideo(targetUrl)
+        targetVideoId = created.id
+      }
+      const detail = await postVideoAutoSubtitle(targetVideoId, targetUrl)
+      setCuesFromServer(
+        apiSegmentsToCues(detail.segments),
+        `伺服器：自動字幕（${detail.segments.length} 段）`,
+      )
+      setYoutubeStatus(`已自動載入字幕：${detail.segments.length} 段`)
+      setAutoSubtitleMsg(`已自動載入字幕：${detail.segments.length} 段`)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '自動抓字幕失敗'
+      setAutoSubtitleErr(`自動抓字幕失敗：${msg}`)
+    } finally {
+      setAutoSubtitleLoading(false)
+    }
+  }
+
   return (
     <>
       <section className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
@@ -107,6 +152,12 @@ export function VideoManagement() {
               type="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void handleLoadYoutube()
+                }
+              }}
               placeholder="https://www.youtube.com/watch?v=…"
               className="mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
             />
@@ -114,11 +165,15 @@ export function VideoManagement() {
           <button
             type="button"
             onClick={() => void handleLoadYoutube()}
+            disabled={youtubeLoading}
             className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            載入影片
+            {youtubeLoading ? '載入中…' : '載入影片'}
           </button>
         </div>
+        {youtubeStatus && (
+          <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">{youtubeStatus}</p>
+        )}
         {oembedError && (
           <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">{oembedError}</p>
         )}
@@ -166,6 +221,24 @@ export function VideoManagement() {
             目前連結影片庫 ID：<span className="font-mono">{libraryVideoId}</span>
             ；上傳 SRT 將寫入伺服器。
           </p>
+        )}
+        <div className="mb-3 flex justify-start">
+          <button
+            type="button"
+            onClick={() => void handleAutoSubtitle()}
+            disabled={autoSubtitleLoading}
+            className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {autoSubtitleLoading ? '自動抓字幕中…' : '自動抓 YouTube 英文字幕'}
+          </button>
+        </div>
+        {autoSubtitleMsg && (
+          <p className="mb-2 text-left text-sm text-emerald-700 dark:text-emerald-400">
+            {autoSubtitleMsg}
+          </p>
+        )}
+        {autoSubtitleErr && (
+          <p className="mb-2 text-left text-sm text-rose-700 dark:text-rose-400">{autoSubtitleErr}</p>
         )}
         <label className="text-left text-sm font-medium text-zinc-700 dark:text-zinc-300">
           英文字幕（SRT，本機檔案）

@@ -251,6 +251,25 @@ export async function postVideoSrt(videoId: number, file: File): Promise<VideoDe
 }
 
 /**
+ * 自動抓 YouTube 英文字幕並寫入指定影片。
+ */
+export async function postVideoAutoSubtitle(
+  videoId: number,
+  youtubeUrl: string,
+): Promise<VideoDetail> {
+  const res = await fetch(`${defaultBase()}/videos/${videoId}/subtitles/auto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ youtube_url: youtubeUrl.trim() }),
+  })
+  if (!res.ok) {
+    const msg = await parseApiErrorBody(res, res.statusText || `HTTP ${res.status}`)
+    throw new Error(msg || `HTTP ${res.status}`)
+  }
+  return (await res.json()) as VideoDetail
+}
+
+/**
  * 刪除庫內影片。
  */
 export async function deleteVideo(videoId: number): Promise<void> {

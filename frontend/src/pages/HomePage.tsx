@@ -19,6 +19,21 @@ function formatDuration(sec: number | null): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function toFriendlyApiError(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : fallback
+  const lower = raw.toLowerCase()
+  if (
+    lower.includes('folders 502') ||
+    lower.includes('videos 502') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('networkerror') ||
+    lower.includes('econnrefused')
+  ) {
+    return '目前無法連線到後端服務，請先啟動 backend（http://127.0.0.1:8000）。'
+  }
+  return raw || fallback
+}
+
 /**
  * 影片列表／匯入（開發計畫：後端 SQLite + 前往聽打）。
  */
@@ -55,7 +70,7 @@ export function HomePage() {
       setItems(list)
       setFolders(flist)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '無法載入影片庫（請確認後端已啟動）')
+      setError(toFriendlyApiError(e, '無法載入影片庫（請確認後端已啟動）'))
       setItems([])
       setFolders([])
     } finally {
@@ -78,7 +93,7 @@ export function HomePage() {
       await refresh()
       notifyLibraryUpdated()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '新增失敗')
+      setError(toFriendlyApiError(e, '新增失敗'))
     } finally {
       setAdding(false)
     }
@@ -150,6 +165,12 @@ export function HomePage() {
               type="url"
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (!adding && newUrl.trim()) void handleAdd()
+                }
+              }}
               placeholder="貼上 YouTube 網址"
               className="w-full flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
             />

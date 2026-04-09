@@ -25,6 +25,8 @@ export function extractYoutubeVideoId(input: string): string | null {
       if (embed) return embed[1]
       const shortPath = u.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]{11})/)
       if (shortPath) return shortPath[1]
+      const livePath = u.pathname.match(/^\/live\/([a-zA-Z0-9_-]{11})/)
+      if (livePath) return livePath[1]
     }
   } catch {
     /* 非 URL 則忽略 */
@@ -32,6 +34,12 @@ export function extractYoutubeVideoId(input: string): string | null {
 
   const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/)
   if (watchMatch) return watchMatch[1]
+  const youtuBeMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/)
+  if (youtuBeMatch) return youtuBeMatch[1]
+  const shortsMatch = trimmed.match(/\/shorts\/([a-zA-Z0-9_-]{11})/)
+  if (shortsMatch) return shortsMatch[1]
+  const liveMatch = trimmed.match(/\/live\/([a-zA-Z0-9_-]{11})/)
+  if (liveMatch) return liveMatch[1]
 
   return null
 }

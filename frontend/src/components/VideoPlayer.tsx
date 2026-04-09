@@ -6,9 +6,13 @@ import {
   useRef,
   useState,
 } from 'react'
-import ReactPlayer from 'react-player'
+import ReactPlayer from 'react-player/lazy'
 import type { OnProgressProps } from 'react-player/base'
 import type { PlayMode, VideoSegmentTimes } from '../types'
+
+const PlayerImpl = (
+  (ReactPlayer as unknown as { default?: unknown }).default ?? ReactPlayer
+) as typeof ReactPlayer
 
 export type VideoPlayerHandle = {
   /**
@@ -155,7 +159,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>(
           {videoUrl ? (
             <>
               <div className="absolute inset-0">
-                <ReactPlayer
+                <PlayerImpl
                   ref={playerRef}
                   url={videoUrl}
                   playing={playing}
