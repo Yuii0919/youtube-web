@@ -1,0 +1,8 @@
+---
+alwaysApply: true
+---
+
+- 使用 uv 管理 Python 環境
+- 如果專案尚未建立虛擬環境, 請使用 uv init 初始化環境
+- 如果要執行 python 程式,使用 uv run 執行
+- 使用 docstring 並以**繁體中文**紀錄函數、類別說明
