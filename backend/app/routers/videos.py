@@ -201,8 +201,36 @@ def fetch_auto_subs(
     db: Session = Depends(get_db),
 ) -> VideoDetailOut:
     """以 yt-dlp 抓取英文自動字幕。"""
+    v = db.get(Video, video_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="影片不存在")
+
+    urls_to_try: list[str] = []
+    # 優先用資料庫既有 youtube_id 組出的標準網址，最穩定。
+    urls_to_try.append(canonical_watch_url(v.youtube_id))
+
+    raw = body.youtube_url.strip()
+    if raw:
+        parsed = extract_youtube_video_id(raw)
+        if parsed:
+            u = canonical_watch_url(parsed)
+            if u not in urls_to_try:
+                urls_to_try.append(u)
+        elif raw not in urls_to_try:
+            urls_to_try.append(raw)
+
+    last_error = "自動字幕下載失敗"
     try:
-        items = download_auto_subs_srt(body.youtube_url.strip())
+        items: list[dict] | None = None
+        for u in urls_to_try:
+            try:
+                items = download_auto_subs_srt(u)
+                if items:
+                    break
+            except Exception as e:
+                last_error = str(e) or last_error
+        if not items:
+            raise RuntimeError(last_error)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e) or "自動字幕下載失敗") from e
 

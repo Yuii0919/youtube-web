@@ -40,6 +40,15 @@ export function HomePage() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [movingId, setMovingId] = useState<number | null>(null)
 
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text?.trim()) setNewUrl(text.trim())
+    } catch {
+      window.alert('無法讀取剪貼簿，請手動貼上（Ctrl+V）。')
+    }
+  }
+
   const refresh = useCallback(async () => {
     setError(null)
     setLoading(true)
@@ -153,7 +162,7 @@ export function HomePage() {
             下載 YouTube 影片
           </div>
           <form
-            className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-center"
+            className="pointer-events-auto relative z-10 flex flex-col gap-2 sm:flex-row sm:items-center"
             onSubmit={(e) => {
               e.preventDefault()
               if (!adding && newUrl.trim()) void handleAdd()
@@ -173,9 +182,19 @@ export function HomePage() {
               spellCheck={false}
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
+              onPointerDown={(e) => {
+                ;(e.currentTarget as HTMLInputElement).focus()
+              }}
               placeholder="貼上 YouTube 網址（可含 https:// 或僅影片連結）"
-              className="w-full min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
+              className="pointer-events-auto w-full min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
             />
+            <button
+              type="button"
+              onClick={() => void handlePasteFromClipboard()}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              貼上
+            </button>
             <button
               type="submit"
               disabled={adding || !newUrl.trim()}

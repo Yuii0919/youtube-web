@@ -4,13 +4,8 @@
 
 import { normalizeCues, type SrtCue } from '../lib/srt'
 
-const defaultBase = (): string => {
-  const env = import.meta.env.VITE_TRANSLATE_API_BASE
-  if (typeof env === 'string' && env.trim()) {
-    return env.trim().replace(/\/$/, '')
-  }
-  return '/api'
-}
+const BASE_URL = 'https://youtube-web-backend.onrender.com'
+export const apiUrl = (path: string): string => `${BASE_URL}${path}`
 
 /**
  * 解析 FastAPI 錯誤本文（detail 字串或驗證錯誤陣列）供使用者閱讀。
@@ -90,7 +85,7 @@ export type VideoDetail = {
  * 呼叫後端翻譯代理。
  */
 export async function postTranslate(q: string): Promise<TranslateResponseBody> {
-  const res = await fetch(`${defaultBase()}/translate`, {
+  const res = await fetch(apiUrl('/translate'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ q: q.trim() }),
@@ -106,7 +101,7 @@ export async function postTranslate(q: string): Promise<TranslateResponseBody> {
  * 健康檢查。
  */
 export async function getHealth(): Promise<{ status: string }> {
-  const res = await fetch(`${defaultBase()}/health`)
+  const res = await fetch(apiUrl('/health'))
   if (!res.ok) throw new Error(`health ${res.status}`)
   return (await res.json()) as { status: string }
 }
@@ -119,7 +114,7 @@ export async function getVideos(params?: GetVideosParams): Promise<VideoListItem
   if (params?.uncategorizedOnly) q.set('uncategorized_only', 'true')
   else if (params?.folderId !== undefined) q.set('folder_id', String(params.folderId))
   const qs = q.toString()
-  const res = await fetch(`${defaultBase()}/videos${qs ? `?${qs}` : ''}`)
+  const res = await fetch(apiUrl(`/videos${qs ? `?${qs}` : ''}`))
   if (!res.ok) throw new Error(`videos ${res.status}`)
   return (await res.json()) as VideoListItem[]
 }
@@ -128,7 +123,7 @@ export async function getVideos(params?: GetVideosParams): Promise<VideoListItem
  * 列出影片資料夾。
  */
 export async function getFolders(): Promise<VideoFolderItem[]> {
-  const res = await fetch(`${defaultBase()}/folders`)
+  const res = await fetch(apiUrl('/folders'))
   if (!res.ok) throw new Error(`folders ${res.status}`)
   return (await res.json()) as VideoFolderItem[]
 }
@@ -137,7 +132,7 @@ export async function getFolders(): Promise<VideoFolderItem[]> {
  * 新增資料夾。
  */
 export async function postFolder(name: string): Promise<VideoFolderItem> {
-  const res = await fetch(`${defaultBase()}/folders`, {
+  const res = await fetch(apiUrl('/folders'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: name.trim() }),
@@ -153,7 +148,7 @@ export async function postFolder(name: string): Promise<VideoFolderItem> {
  * 重新命名資料夾。
  */
 export async function patchFolder(id: number, name: string): Promise<VideoFolderItem> {
-  const res = await fetch(`${defaultBase()}/folders/${id}`, {
+  const res = await fetch(apiUrl(`/folders/${id}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: name.trim() }),
@@ -169,7 +164,7 @@ export async function patchFolder(id: number, name: string): Promise<VideoFolder
  * 刪除資料夾（旗下影片改未分類）。
  */
 export async function deleteFolder(id: number): Promise<void> {
-  const res = await fetch(`${defaultBase()}/folders/${id}`, { method: 'DELETE' })
+  const res = await fetch(apiUrl(`/folders/${id}`), { method: 'DELETE' })
   if (!res.ok) {
     const msg = await parseApiErrorBody(res, res.statusText || `HTTP ${res.status}`)
     throw new Error(msg || `HTTP ${res.status}`)
@@ -183,7 +178,7 @@ export async function patchVideoFolder(
   videoId: number,
   folderId: number | null,
 ): Promise<VideoListItem> {
-  const res = await fetch(`${defaultBase()}/videos/${videoId}`, {
+  const res = await fetch(apiUrl(`/videos/${videoId}`), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ folder_id: folderId }),
@@ -199,7 +194,7 @@ export async function patchVideoFolder(
  * 新增影片（YouTube 網址）。
  */
 export async function postVideo(youtubeUrl: string): Promise<VideoListItem> {
-  const res = await fetch(`${defaultBase()}/videos`, {
+  const res = await fetch(apiUrl('/videos'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ youtube_url: youtubeUrl }),
@@ -215,7 +210,7 @@ export async function postVideo(youtubeUrl: string): Promise<VideoListItem> {
  * 影片詳情（含字幕）。
  */
 export async function getVideoDetail(videoId: number): Promise<VideoDetail> {
-  const res = await fetch(`${defaultBase()}/videos/${videoId}`)
+  const res = await fetch(apiUrl(`/videos/${videoId}`))
   if (!res.ok) throw new Error(`video ${res.status}`)
   return (await res.json()) as VideoDetail
 }
@@ -239,7 +234,7 @@ export function apiSegmentsToCues(segments: ApiSubtitleSegment[]): SrtCue[] {
 export async function postVideoSrt(videoId: number, file: File): Promise<VideoDetail> {
   const body = new FormData()
   body.append('file', file)
-  const res = await fetch(`${defaultBase()}/videos/${videoId}/subtitles/srt`, {
+  const res = await fetch(apiUrl(`/videos/${videoId}/subtitles/srt`), {
     method: 'POST',
     body,
   })
@@ -257,7 +252,7 @@ export async function postVideoAutoSubtitle(
   videoId: number,
   youtubeUrl: string,
 ): Promise<VideoDetail> {
-  const res = await fetch(`${defaultBase()}/videos/${videoId}/subtitles/auto`, {
+  const res = await fetch(apiUrl(`/videos/${videoId}/subtitles/auto`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ youtube_url: youtubeUrl.trim() }),
@@ -273,7 +268,7 @@ export async function postVideoAutoSubtitle(
  * 刪除庫內影片。
  */
 export async function deleteVideo(videoId: number): Promise<void> {
-  const res = await fetch(`${defaultBase()}/videos/${videoId}`, { method: 'DELETE' })
+  const res = await fetch(apiUrl(`/videos/${videoId}`), { method: 'DELETE' })
   if (!res.ok) throw new Error(`delete ${res.status}`)
 }
 
@@ -286,7 +281,7 @@ export type VideoDownloadResult = {
  * 下載 YouTube 影片至後端 downloads 目錄（課本：影片庫下載）。
  */
 export async function postVideoDownload(videoId: number): Promise<VideoDownloadResult> {
-  const res = await fetch(`${defaultBase()}/videos/${videoId}/download`, {
+  const res = await fetch(apiUrl(`/videos/${videoId}/download`), {
     method: 'POST',
   })
   if (!res.ok) {
@@ -316,7 +311,7 @@ export type AiSettingsDto = {
  * 讀取 AI 解說設定（金鑰已遮罩）。
  */
 export async function getAiSettings(): Promise<AiSettingsDto> {
-  const res = await fetch(`${defaultBase()}/ai/settings`)
+  const res = await fetch(apiUrl('/ai/settings'))
   if (!res.ok) {
     const msg = await parseApiErrorBody(res, res.statusText || `HTTP ${res.status}`)
     throw new Error(msg || `HTTP ${res.status}`)
@@ -339,7 +334,7 @@ export type PutAiSettingsBody = {
  * 更新 AI 解說設定。
  */
 export async function putAiSettings(body: PutAiSettingsBody): Promise<AiSettingsDto> {
-  const res = await fetch(`${defaultBase()}/ai/settings`, {
+  const res = await fetch(apiUrl('/ai/settings'), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -362,7 +357,7 @@ export async function getOllamaModels(baseUrl?: string | null): Promise<OllamaMo
   const q = new URLSearchParams()
   if (baseUrl?.trim()) q.set('base_url', baseUrl.trim())
   const qs = q.toString()
-  const res = await fetch(`${defaultBase()}/ai/ollama/models${qs ? `?${qs}` : ''}`)
+  const res = await fetch(apiUrl(`/ai/ollama/models${qs ? `?${qs}` : ''}`))
   if (!res.ok) {
     const msg = await parseApiErrorBody(res, res.statusText || `HTTP ${res.status}`)
     throw new Error(msg || `HTTP ${res.status}`)
@@ -381,7 +376,7 @@ export type TestConnectionResult = {
  * 測試目前表單對應 provider 的連線（金鑰可沿用已儲存）。
  */
 export async function postAiTestConnection(body: TestConnectionBody): Promise<TestConnectionResult> {
-  const res = await fetch(`${defaultBase()}/ai/test-connection`, {
+  const res = await fetch(apiUrl('/ai/test-connection'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -406,7 +401,7 @@ export type AiExplainResult = {
  * 請後端代理呼叫 LLM 產生繁中解說。
  */
 export async function postAiExplain(body: PostAiExplainBody): Promise<AiExplainResult> {
-  const res = await fetch(`${defaultBase()}/ai/explain`, {
+  const res = await fetch(apiUrl('/ai/explain'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

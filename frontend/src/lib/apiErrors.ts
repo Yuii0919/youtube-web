@@ -1,5 +1,5 @@
 const GATEWAY_HINT =
-  '無法連上後端 API。若為本機開發，請在專案目錄啟動 backend（預設監聽 http://127.0.0.1:8000），並保持 `npm run dev` 的 Vite 代理指向該位址。若仍出現 502，代表代理有轉發但上游未回應或已崩潰，請查看執行後端的終端機日誌。'
+  '無法連上後端 API。請確認前端 `VITE_API_BASE_URL`（Render URL）或本機 dev 代理目標設定正確；若仍出現 502，代表代理有轉發但上游未回應或已崩潰，請查看後端日誌。'
 
 function rawMessage(err: unknown, fallback: string): string {
   if (typeof err === 'string') return err
