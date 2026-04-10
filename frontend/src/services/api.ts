@@ -205,8 +205,8 @@ export async function postVideo(youtubeUrl: string): Promise<VideoListItem> {
     body: JSON.stringify({ youtube_url: youtubeUrl }),
   })
   if (!res.ok) {
-    const t = await res.text().catch(() => res.statusText)
-    throw new Error(t || `HTTP ${res.status}`)
+    const msg = await parseApiErrorBody(res, res.statusText || `HTTP ${res.status}`)
+    throw new Error(msg || `HTTP ${res.status}`)
   }
   return (await res.json()) as VideoListItem
 }

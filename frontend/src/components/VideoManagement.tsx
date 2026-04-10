@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useVideoStore } from '../store/useVideoStore'
 import {
   extractYoutubeVideoId,
   fetchYoutubeOEmbed,
+  toCanonicalYoutubeWatchUrl,
 } from '../lib/youtube'
 import { parseSrt } from '../lib/srt'
+import { toFriendlyApiError } from '../lib/apiErrors'
 import { apiSegmentsToCues, postVideo, postVideoAutoSubtitle, postVideoSrt } from '../services/api'
 
 /**
@@ -33,6 +35,16 @@ export function VideoManagement() {
   const [autoSubtitleErr, setAutoSubtitleErr] = useState<string | null>(null)
 
   const localBlobRef = useRef<string | null>(null)
+
+  const autoSubtitleCanonical = useMemo(
+    () =>
+      toCanonicalYoutubeWatchUrl((pageUrl ?? '').trim()) ??
+      toCanonicalYoutubeWatchUrl((urlInput ?? '').trim()) ??
+      (videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)
+        ? `https://www.youtube.com/watch?v=${videoId}`
+        : null),
+    [pageUrl, urlInput, videoId],
+  )
 
   const revokeLocalBlob = () => {
     if (localBlobRef.current) {
@@ -114,27 +126,31 @@ export function VideoManagement() {
     if (autoSubtitleLoading) return
     setAutoSubtitleMsg(null)
     setAutoSubtitleErr(null)
-    const targetUrl = (pageUrl || urlInput || '').trim()
-    if (!targetUrl) {
-      setAutoSubtitleErr('請先載入 YouTube 影片。')
+
+    if (!autoSubtitleCanonical) {
+      setAutoSubtitleErr(
+        '無法解析 YouTube 網址。請在上方貼上完整連結（youtu.be、watch?v=、Shorts 等）並按「載入影片」，或確認已從影片庫開啟該片。',
+      )
       return
     }
+
     try {
       setAutoSubtitleLoading(true)
       let targetVideoId = libraryVideoId
       if (targetVideoId == null) {
-        const created = await postVideo(targetUrl)
+        const created = await postVideo(autoSubtitleCanonical)
         targetVideoId = created.id
       }
-      const detail = await postVideoAutoSubtitle(targetVideoId, targetUrl)
+      const detail = await postVideoAutoSubtitle(targetVideoId, autoSubtitleCanonical)
       setCuesFromServer(
         apiSegmentsToCues(detail.segments),
         `伺服器：自動字幕（${detail.segments.length} 段）`,
+        targetVideoId,
       )
       setYoutubeStatus(`已自動載入字幕：${detail.segments.length} 段`)
       setAutoSubtitleMsg(`已自動載入字幕：${detail.segments.length} 段`)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '自動抓字幕失敗'
+      const msg = toFriendlyApiError(e, '自動抓字幕失敗')
       setAutoSubtitleErr(`自動抓字幕失敗：${msg}`)
     } finally {
       setAutoSubtitleLoading(false)
@@ -226,7 +242,12 @@ export function VideoManagement() {
           <button
             type="button"
             onClick={() => void handleAutoSubtitle()}
-            disabled={autoSubtitleLoading}
+            disabled={autoSubtitleLoading || !autoSubtitleCanonical}
+            title={
+              autoSubtitleCanonical
+                ? undefined
+                : '請先貼上可辨識的 YouTube 連結、按「載入影片」，或從影片庫開啟影片'
+            }
             className="rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             {autoSubtitleLoading ? '自動抓字幕中…' : '自動抓 YouTube 英文字幕'}

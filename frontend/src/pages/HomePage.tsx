@@ -10,28 +10,15 @@ import {
   type VideoFolderItem,
   type VideoListItem,
 } from '../services/api'
+import { toFriendlyApiError } from '../lib/apiErrors'
 import { notifyLibraryUpdated } from '../lib/libraryEvents'
+import { toCanonicalYoutubeWatchUrl } from '../lib/youtube'
 
 function formatDuration(sec: number | null): string {
   if (sec == null || !Number.isFinite(sec)) return '—'
   const m = Math.floor(sec / 60)
   const s = Math.floor(sec % 60)
   return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function toFriendlyApiError(err: unknown, fallback: string): string {
-  const raw = err instanceof Error ? err.message : fallback
-  const lower = raw.toLowerCase()
-  if (
-    lower.includes('folders 502') ||
-    lower.includes('videos 502') ||
-    lower.includes('failed to fetch') ||
-    lower.includes('networkerror') ||
-    lower.includes('econnrefused')
-  ) {
-    return '目前無法連線到後端服務，請先啟動 backend（http://127.0.0.1:8000）。'
-  }
-  return raw || fallback
 }
 
 /**
@@ -85,10 +72,15 @@ export function HomePage() {
   const handleAdd = async () => {
     const u = newUrl.trim()
     if (!u) return
+    const canonical = toCanonicalYoutubeWatchUrl(u)
+    if (!canonical) {
+      setError('無法從輸入辨識 YouTube 影片，請貼上完整連結（含 youtu.be、watch?v= 等）或 11 碼影片 ID。')
+      return
+    }
     setAdding(true)
     setError(null)
     try {
-      await postVideo(u)
+      await postVideo(canonical)
       setNewUrl('')
       await refresh()
       notifyLibraryUpdated()
@@ -160,29 +152,38 @@ export function HomePage() {
           <div className="mb-2 text-left text-sm font-semibold text-zinc-800 dark:text-zinc-200">
             下載 YouTube 影片
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <form
+            className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-center"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!adding && newUrl.trim()) void handleAdd()
+            }}
+          >
+            <label htmlFor="home-youtube-url" className="sr-only">
+              YouTube 網址
+            </label>
             <input
-              type="url"
+              id="home-youtube-url"
+              name="youtube_url"
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  if (!adding && newUrl.trim()) void handleAdd()
-                }
-              }}
-              placeholder="貼上 YouTube 網址"
-              className="w-full flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
+              placeholder="貼上 YouTube 網址（可含 https:// 或僅影片連結）"
+              className="w-full min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-300/50 dark:border-zinc-600 dark:bg-zinc-950 dark:focus:ring-zinc-700/70"
             />
             <button
-              type="button"
+              type="submit"
               disabled={adding || !newUrl.trim()}
-              onClick={() => void handleAdd()}
-              className="inline-flex items-center justify-center rounded-xl bg-zinc-900 px-6 py-3 text-sm font-bold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-zinc-900 px-6 py-3 text-sm font-bold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
             >
               {adding ? '匯入中…' : '匯入'}
             </button>
-          </div>
+          </form>
 
           {error && (
             <p className="mt-2 text-left text-sm text-red-600 dark:text-red-400">

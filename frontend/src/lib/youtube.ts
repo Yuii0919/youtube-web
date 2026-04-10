@@ -44,6 +44,14 @@ export function extractYoutubeVideoId(input: string): string | null {
   return null
 }
 
+/**
+ * 將可辨識的 YouTube 輸入轉成標準 watch URL，供後端建檔與自動抓字幕。
+ */
+export function toCanonicalYoutubeWatchUrl(input: string): string | null {
+  const id = extractYoutubeVideoId(input)
+  return id ? `https://www.youtube.com/watch?v=${id}` : null
+}
+
 export type YoutubeOEmbed = {
   title: string
   author_name: string

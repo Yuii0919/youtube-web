@@ -39,8 +39,8 @@ type VideoState = {
     thumbnail_url: string
     cues: SrtCue[]
   }) => void
-  /** 自後端刷新目前字幕（例如上傳 SRT 後）。 */
-  setCuesFromServer: (cues: SrtCue[], srtFileName: string) => void
+  /** 自後端刷新目前字幕（例如上傳 SRT、自動抓字後）；可一併綁定影片庫 ID。 */
+  setCuesFromServer: (cues: SrtCue[], srtFileName: string, libraryVideoId?: number) => void
 }
 
 export const useVideoStore = create<VideoState>((set) => ({
@@ -100,10 +100,11 @@ export const useVideoStore = create<VideoState>((set) => ({
       selectedIndex: cues.length ? 0 : null,
     }),
 
-  setCuesFromServer: (cues, srtFileName) =>
+  setCuesFromServer: (cues, srtFileName, libraryVideoId) =>
     set({
       cues,
       srtFileName,
       selectedIndex: cues.length ? 0 : null,
+      ...(libraryVideoId !== undefined ? { libraryVideoId } : {}),
     }),
 }))
