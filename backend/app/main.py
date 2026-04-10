@@ -1,12 +1,30 @@
 """
-FastAPI 應用程式進入點。
+FastAPI 應用程式進入點：掛載路由與 CORS。
 """
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
-app = FastAPI()
+from app.database import init_db
+from app.routers import ai, folders, health, translate, videos
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """啟動時建立資料表與預設列。"""
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="YouTube 聽打練習 API",
+    description="影片庫、字幕、翻譯與 AI 解說後端",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,31 +34,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/")
-def root():
-    """根路徑：確認 API 已啟動。"""
-    return {"msg": "API is running"}
-
-
-class TranslateRequest(BaseModel):
-    """翻譯請求。"""
-
-    text: str
-
-
-@app.post("/translate")
-def translate(req: TranslateRequest):
-    """假翻譯：Hello / World 對照，其餘回傳原文。"""
-    if req.text == "Hello":
-        return {"result": "你好"}
-    elif req.text == "World":
-        return {"result": "世界"}
-    else:
-        return {"result": req.text}
-
-
-@app.get("/health")
-def health():
-    """健康檢查。"""
-    return {"status": "ok"}
+app.include_router(health.router)
+app.include_router(translate.router)
+app.include_router(folders.router)
+app.include_router(videos.router)
+app.include_router(ai.router)
