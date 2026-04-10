@@ -2,11 +2,9 @@
 FastAPI 應用程式進入點。
 """
 
-from __future__ import annotations
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -20,35 +18,23 @@ app.add_middleware(
 
 
 class TranslateRequest(BaseModel):
-    """翻譯請求本文。"""
+    """翻譯請求。"""
 
-    text: str = Field(min_length=1, description="要翻譯的文字")
-
-
-class TranslateResponse(BaseModel):
-    """翻譯結果。"""
-
-    result: str
+    text: str
 
 
-_FAKE_MAP: dict[str, str] = {
-    "Hello": "你好",
-    "World": "世界",
-}
-
-
-def _fake_translate(text: str) -> str:
-    """假翻譯：Hello / World 對照，其餘原樣回傳。"""
-    return _FAKE_MAP.get(text, text)
+@app.post("/translate")
+def translate(req: TranslateRequest):
+    """假翻譯：Hello / World 對照，其餘回傳原文。"""
+    if req.text == "Hello":
+        return {"result": "你好"}
+    elif req.text == "World":
+        return {"result": "世界"}
+    else:
+        return {"result": req.text}
 
 
 @app.get("/health")
-def health() -> dict:
-    """健康檢查；回傳服務狀態。"""
+def health():
+    """健康檢查。"""
     return {"status": "ok"}
-
-
-@app.post("/translate", response_model=TranslateResponse)
-def translate(body: TranslateRequest) -> TranslateResponse:
-    """假翻譯 API（未串接真實 AI）。"""
-    return TranslateResponse(result=_fake_translate(body.text))
