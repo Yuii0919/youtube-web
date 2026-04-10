@@ -17,6 +17,12 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    """根路徑：確認 API 已啟動。"""
+    return {"msg": "API is running"}
+
+
 class TranslateRequest(BaseModel):
     """翻譯請求。"""
 
