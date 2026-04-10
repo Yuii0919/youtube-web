@@ -5,19 +5,13 @@ function App() {
   const [result, setResult] = useState<string>("請輸入文字");
 
   const handleTranslate = async (): Promise<void> => {
-    const trimmed = input.trim();
-    if (!trimmed) {
-      setResult("請輸入文字");
-      return;
-    }
-
     try {
       const res = await fetch(
         "https://youtube-web-vfc6.onrender.com/translate",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: trimmed }),
+          body: JSON.stringify({ text: input }),
         },
       );
 
