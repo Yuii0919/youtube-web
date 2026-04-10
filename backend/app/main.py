@@ -26,6 +26,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.get("/folders")
+def get_folders() -> list:
+    """Render 連線測試用：固定回傳空陣列。"""
+    return []
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
